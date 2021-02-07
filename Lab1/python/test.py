@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptc
-np.random.seed(20)
+# np.random.seed(20)
 # Получение данных
 
 x_limits = [-10,10]
 y_limits = [-5,5]
-N = 10
+N = 15
 
 def random_data(x_limits, y_limits,N):
     """
@@ -29,8 +29,10 @@ def first_pic(data, x_limits, y_limits, size=7, title = ""):
     """
     Рисует только полученные точки
     """
-    fig, ax = plt.subplots(figsize = (size * abs(x_limits[0] - x_limits[1]), size * abs(y_limits[0] - y_limits[1])))
-    ax.set_title(title, fontsize=size*3)
+    figsize = np.array((abs(x_limits[0] - x_limits[1]), abs(y_limits[0] - y_limits[1])))
+    figsize = figsize*(size/np.max(figsize))
+    fig, ax = plt.subplots(figsize = figsize)
+    ax.set_title(title)
     ax.set_xlim(*x_limits)
     ax.set_ylim(*y_limits)
     ax.axis("equal")
@@ -73,14 +75,8 @@ def second_pic(data, x_limits, y_limits, index_max,  size =7, title = ""):
     """
     Рисует полученные точки и отрезок, котрый соединяет самые отдаленные точки
     """
-    fig, ax = plt.subplots(figsize = (size * abs(x_limits[0] - x_limits[1]), size * abs(y_limits[0] - y_limits[1])))
-    ax.set_title(title, fontsize=size*3)
-    ax.set_xlim(*x_limits)
-    ax.set_ylim(*y_limits)
-    ax.axis("equal")
-    ax.scatter(data[0],data[1])
-    ax.set_xlabel("$x$")
-    ax.set_ylabel("$y$")
+    fig= first_pic(data, x_limits, y_limits, size , title)
+    ax = fig.axes[0]
     ax.plot([data[0,index_max[0]], data[0,index_max[1]]], [data[1,index_max[0]], data[1,index_max[1]]])
     return fig
 
@@ -126,7 +122,7 @@ def vertical_segments(rdata):
     """
     Функция находит индексы точек с имнимальным и максимальным значениями по оси y 
     """
-    return np.argmin(rdata,axis=1)[1], np.argmax(rdata,axis=1)[1]
+    return [np.argmin(rdata,axis=1)[1], np.argmax(rdata,axis=1)[1]]
 
 v_index = vertical_segments(rdata)
 print(v_index)
@@ -142,7 +138,7 @@ def vertical_perpendiculars(rdata, index_max, v_index):
     seg2 = np.array([rdata.T[v_index[1]], [rdata.T[v_index[1],0], rdata.T[index_max[0],1]]]).T
     return seg1, seg2
 
-segments = vertical_perpendiculars(rdata, index_max, v_index) 
+segments = np.array(vertical_perpendiculars(rdata, index_max, v_index))
 
 def third_pic(rdata, index_max,v_index, segments, size = 7, title= ""):
     """
@@ -150,7 +146,7 @@ def third_pic(rdata, index_max,v_index, segments, size = 7, title= ""):
     """
     new_y_limits = rdata[1,v_index[0]]*1.1, rdata[1,v_index[1]]*1.1
     new_x_limits = rdata[0,index_max[0]]*1.1, rdata[0,index_max[1]]*1.1
-    print(new_y_limits)
+    print(f"NEw lim y: {new_y_limits}, x: {new_x_limits}")
     fig = second_pic(rdata, new_x_limits, new_y_limits,index_max, size, title )
     ax = fig.axes[0]
     ax.plot(segments[0][0], segments[0][1], color ='red')
@@ -160,6 +156,133 @@ def third_pic(rdata, index_max,v_index, segments, size = 7, title= ""):
 
 fig_list.append(third_pic(rdata,index_max,v_index, segments,title="Повернутый график с максимальными вертикальными отрезками"))
 
+def compression_ratio(rdata, index_max, v_index):
+    """
+    находит коэффициент сжатия/растяжения по x для получения квадрата,
+    а именно равенства отрезков, что были получены из index_max, v_index
+    """
+    x_length = np.abs(rdata[0,index_max[1]] - rdata[0,index_max[0]])
+    y_length = np.abs(rdata[1,v_index[1]] - rdata[1,v_index[0]])
+    return y_length/ x_length
+
+koef = compression_ratio(rdata, index_max, v_index)
+
+
+def make_square_data(rdata, segments, koef):
+    """
+    Функция изменяет данные, сжимает или растягивает по координате x для получения квадрата,
+    а именно равенства отрезков, что были получены из index_max, v_index
+    """
+    s_rdata = rdata.copy()
+    s_rdata[0]= s_rdata[0]* koef
+    s_segments= segments.copy()
+    for i in range(len(s_segments)):
+        s_segments[i][0]*= koef
+    return s_rdata, s_segments
+
+s_rdata, s_segments = make_square_data(rdata, segments, koef)
+
+fig_list.append(third_pic(s_rdata,index_max,v_index, s_segments,title="Квадратный график"))
+
+class MyCircle:
+    """
+    класс круга, который хранит количество точек, что попали внутрь (включая границу). Для этого передается data
+    """
+    def __init__(self, xy, radius, data):
+        self.xy = xy
+        self.radius = radius
+        self.count = self._count_of_inside_dots(data)
+        # print(self.count)
+        
+    def _count_of_inside_dots(self,data):
+        """
+        функция делает перефор точек data и возвращает кол-во попавших внутрь окружности (включая границу)
+        """
+        # транспонируем для удобства вычисления расстояния
+        count =0
+        for dot in data.T:
+            if distance(dot, self.xy) <= self.radius:
+                count+=1
+        return count
+
+    def __str__(self):
+        return f"MyCircle xy: {self.xy}, radius: {self.radius},count: {self.count}"
+
+
+##
+mycircle_list = []
+new_centr = mass_centr(s_rdata)
+for dot in s_rdata.T:
+    # print(f"{distance(dot, new_centr)}, dot {dot}")
+    mycircle_list.append(MyCircle(new_centr, distance(dot, new_centr), s_rdata))
+##
+print(*mycircle_list, sep='\n')
+
+def fourth_pic(s_rdata, index_max,v_index, segments, centr, mycircle_list,size = 7, title= ""):
+    """
+    Рисунок для кваратной области с концентрическими окружностями
+    """
+    fig = third_pic(s_rdata, index_max, v_index, segments, size = size, title = title)
+    ax = fig.axes[0]
+    ax.scatter(centr[0], centr[1], color = "y")
+    for circle in mycircle_list:
+        ax.add_patch(ptc.Circle(circle.xy,circle.radius, fill= False, color ="green"))
+    return fig
+
+fig_list.append(fourth_pic(s_rdata,index_max,v_index, s_segments, new_centr, mycircle_list, title="Квадратный график с окружностями"))
+
+
+class MyEllipse:
+    """
+    Класс эллипсов с кол-вом точек, что попали внутрь (включая границу)
+    """
+    def __init__(self, xy, width, height, angle=0, count=0):
+        self.xy = xy
+        self.width = width
+        self.height = height
+        self.angle = angle
+        self.count = count
+    def __str__(self):
+        return f"MyEllipse xy: {self.xy}, width: {self.width}, height: {self.height}, angle: {self.angle}, count: {self.count}"
+
+##
+myellipse_list = []
+r_centr  = mass_centr(rdata)
+inv_koef = 1/koef
+for circle in mycircle_list:
+    myellipse_list.append(MyEllipse(r_centr, 2*circle.radius*inv_koef, 2*circle.radius, angle=0, count=circle.count))
+
+print(*myellipse_list, sep="\n")
+
+def fifth_pic(rdata, index_max, v_index, segments, centr, myellipse_list, size =7, title =""):
+    """
+    Рисует эллипся на повернутом рисунке
+    """
+    fig = third_pic(rdata, index_max, v_index, segments, size = size, title = title)
+    ax = fig.axes[0]
+    ax.scatter(centr[0], centr[1], color = "y")
+    for ell in myellipse_list:
+        ax.add_patch(ptc.Ellipse(ell.xy, ell.width, ell.height, angle = ell.angle, fill= False, color ="green"))
+    return fig
+
+fig_list.append(fifth_pic(rdata, index_max, v_index, segments, r_centr, myellipse_list, title = "Повернутый рисунок с эллипсами"))
+
+##
+centr = rotate_point(r_centr,data[:,index_max[0]], angle)
+for ell in myellipse_list:
+    ell.angle = np.degrees(angle)
+    ell.xy = centr
+
+
+print(*myellipse_list, sep="\n")
+
+segments_r = []
+for seg in segments:
+    segments_r.append(rotate_point(seg,data[:,index_max[0]], angle))
+
+fig_list.append(fifth_pic(data, index_max, v_index, segments_r, centr, myellipse_list, title = "рисунок с эллипсами"))
+
+
 
 if __name__ =="__main__":
     # data = random_data(x_limits, y_limits, N)
@@ -167,3 +290,12 @@ if __name__ =="__main__":
     # print(data[:,1])
     plt.show()
     # pass
+
+    # fig_list = []
+
+    # fig1, ax1 = plt.subplots()
+    # ax1.set(xlim=(-10,10), ylim= (-10, 10))
+    # ell= ptc.Ellipse((0,0), 6, 2,angle= np.degrees(np.pi/4))
+    # ax1.add_patch(ell)
+
+    # plt.show()
