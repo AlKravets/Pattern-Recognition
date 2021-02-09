@@ -6,7 +6,7 @@ import matplotlib.patches as ptc
 
 x_limits = [-10,10]
 y_limits = [-5,5]
-N = 15
+N = 100
 
 def random_data(x_limits, y_limits,N):
     """
