@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptc
-# np.random.seed(20)
+np.random.seed(20)
 # Получение данных
 
 x_limits = [-10,10]
 y_limits = [-5,5]
-N = 100
+N = 10
 
 def random_data(x_limits, y_limits,N):
     """
@@ -168,19 +168,21 @@ def compression_ratio(rdata, index_max, v_index):
 koef = compression_ratio(rdata, index_max, v_index)
 
 
-def make_square_data(rdata, segments, koef):
+def make_square_data(rdata,index_max, segments, koef):
     """
     Функция изменяет данные, сжимает или растягивает по координате x для получения квадрата,
     а именно равенства отрезков, что были получены из index_max, v_index
     """
     s_rdata = rdata.copy()
-    s_rdata[0]= s_rdata[0]* koef
+    s_rdata[0]= s_rdata[0,index_max[0]] +  (s_rdata[0] - s_rdata[0,index_max[0]])* koef
     s_segments= segments.copy()
     for i in range(len(s_segments)):
-        s_segments[i][0]*= koef
+        s_segments[i][0]= s_rdata[0,index_max[0]] +  (s_segments[i][0] - s_rdata[0,index_max[0]])* koef
     return s_rdata, s_segments
 
-s_rdata, s_segments = make_square_data(rdata, segments, koef)
+s_rdata, s_segments = make_square_data(rdata, index_max, segments, koef)
+
+print(f"before: {rdata.T[index_max[0]]}, after {s_rdata.T[index_max[0]]}")
 
 fig_list.append(third_pic(s_rdata,index_max,v_index, s_segments,title="Квадратный график"))
 
@@ -208,10 +210,17 @@ class MyCircle:
     def __str__(self):
         return f"MyCircle xy: {self.xy}, radius: {self.radius},count: {self.count}"
 
+def find_centr(data,index_max, v_index):
+    """
+    Функция вычисляет центр концентрических окружностей.
+    Центр это усреднение по index_max (ось x) и v_index (ось y)
+    """
+    return np.array([(data[0,index_max[0]]+data[0,index_max[1]])/2, (data[1,v_index[0]]+data[1,v_index[1]])/2 ])
 
 ##
 mycircle_list = []
-new_centr = mass_centr(s_rdata)
+# new_centr = mass_centr(s_rdata)
+new_centr = find_centr(s_rdata, index_max, v_index)
 for dot in s_rdata.T:
     # print(f"{distance(dot, new_centr)}, dot {dot}")
     mycircle_list.append(MyCircle(new_centr, distance(dot, new_centr), s_rdata))
@@ -247,8 +256,9 @@ class MyEllipse:
 
 ##
 myellipse_list = []
-r_centr  = mass_centr(rdata)
 inv_koef = 1/koef
+# r_centr  = mass_centr(rdata)
+r_centr = s_rdata.T[index_max[0]] + (new_centr - s_rdata.T[index_max[0]])*np.array([inv_koef,1])
 for circle in mycircle_list:
     myellipse_list.append(MyEllipse(r_centr, 2*circle.radius*inv_koef, 2*circle.radius, angle=0, count=circle.count))
 
@@ -256,7 +266,7 @@ print(*myellipse_list, sep="\n")
 
 def fifth_pic(rdata, index_max, v_index, segments, centr, myellipse_list, size =7, title =""):
     """
-    Рисует эллипся на повернутом рисунке
+    Рисует эллипса на повернутом рисунке
     """
     fig = third_pic(rdata, index_max, v_index, segments, size = size, title = title)
     ax = fig.axes[0]
@@ -279,6 +289,19 @@ print(*myellipse_list, sep="\n")
 segments_r = []
 for seg in segments:
     segments_r.append(rotate_point(seg,data[:,index_max[0]], angle))
+
+def end_pic(data, myellipse_list, centr, size =7 ,title = ""):
+    """
+    Рисунок с эллипсами Петунина без вспомогательных отрезков
+    """
+    new_y_limits = rdata[1,v_index[0]]*1.1, rdata[1,v_index[1]]*1.1
+    new_x_limits = rdata[0,index_max[0]]*1.1, rdata[0,index_max[1]]*1.1
+    fig= first_pic(data, new_x_limits, new_y_limits, size , title)
+    ax = fig.axes[0]
+    ax.scatter(centr[0], centr[1], color = "y")
+    for ell in myellipse_list:
+        ax.add_patch(ptc.Ellipse(ell.xy, ell.width, ell.height, angle = ell.angle, fill= False, color ="green"))
+    return fig
 
 fig_list.append(fifth_pic(data, index_max, v_index, segments_r, centr, myellipse_list, title = "рисунок с эллипсами"))
 
