@@ -245,14 +245,49 @@ class MyEllipse:
     """
     Класс эллипсов с кол-вом точек, что попали внутрь (включая границу)
     """
-    def __init__(self, xy, width, height, angle=0, count=0):
+    def __init__(self, xy, width, height, N, angle=0, count=0):
         self.xy = xy
-        self.width = width
-        self.height = height
+        self._width = width  # буду использовать декоратор
+        self._height = height # буду использовать декоратор
         self.angle = angle
         self.count = count
+        self.area = self._area_calculation()
+
+        # теоретическая оценка вероятности попадания внутрь эллипса (N - кол-во точек)
+        self.prob = self.count / (N+1)
+
+    def _area_calculation(self):
+        return np.pi *self._width*self._height/4
+
+    # Декоратор
+    @property
+    def width(self):
+        return self._width
+    # При изменении width обновится площадь
+    @width.setter
+    def width(self, value):
+        if value <= 0:
+            raise ValueError('Cannot be <=0')
+        self._width = value
+        self.area= self._area_calculation()
+    
+    @property
+    def height(self):
+        return self._height
+    
+    @height.setter
+    def height(self, value):
+        if value <= 0:
+            raise ValueError('Cannot be <=0')
+        self._height = value
+        self.area= self._area_calculation()
+
+
+
     def __str__(self):
-        return f"MyEllipse xy: {self.xy}, width: {self.width}, height: {self.height}, angle: {self.angle}, count: {self.count}"
+        return f"MyEllipse xy: {self.xy}, width: {self._width}, height: {self._height}, angle: {self.angle}, count: {self.count}, area: {self.area}, prob: {self.prob}"
+    def __repr__(self):
+        return f"#MyEllipse c:({self.xy[0]},{self.xy[0]}), (w/h/a:{self._width},{self._height},{self.angle}), count: {self.count}, area: {self.area}, prob: {self.prob} #"
 
 ##
 myellipse_list = []
@@ -260,7 +295,7 @@ inv_koef = 1/koef
 # r_centr  = mass_centr(rdata)
 r_centr = s_rdata.T[index_max[0]] + (new_centr - s_rdata.T[index_max[0]])*np.array([inv_koef,1])
 for circle in mycircle_list:
-    myellipse_list.append(MyEllipse(r_centr, 2*circle.radius*inv_koef, 2*circle.radius, angle=0, count=circle.count))
+    myellipse_list.append(MyEllipse(r_centr, 2*circle.radius*inv_koef, 2*circle.radius, N, angle=0, count=circle.count))
 
 print(*myellipse_list, sep="\n")
 
@@ -307,12 +342,31 @@ fig_list.append(fifth_pic(data, index_max, v_index, segments_r, centr, myellipse
 
 
 
+def print_table(myellipse_list, mycircle_list):
+    
+    # header
+    print("|"+"|".join(["Номер точки","Радиус окружности", "Кол-во точек внутри", "Площадь эллипса", "Оценка вероятности"]))
+    print("|:---"*5)
+    
+    for i in range(len(mycircle_list)):    
+        print("|"+"|".join([str(i+1),str(mycircle_list[i].radius),str(myellipse_list[i].count), str(myellipse_list[i].area), str(myellipse_list[i].prob)]))
+
+
+    # for i in range(len(mycircle_list)):
+    #     print(mycircle_list[i])
+    #     print(myellipse_list[i])
+
+
+print_table(myellipse_list, mycircle_list)
+
+
 if __name__ =="__main__":
     # data = random_data(x_limits, y_limits, N)
     # print(data.shape)
     # print(data[:,1])
-    plt.show()
+    # plt.show()
     # pass
+
 
     # fig_list = []
 
@@ -322,3 +376,6 @@ if __name__ =="__main__":
     # ax1.add_patch(ell)
 
     # plt.show()
+    pass
+
+    
