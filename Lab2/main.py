@@ -1,29 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptc
+import time
+from scipy.spatial import ConvexHull
 np.random.seed(11)
 # np.random.seed(29)
 # np.random.seed(143)
-
-
-'''
-fig, ax = plt.subplots()
-    
-    ax.set_xlim(*x_limits)
-    ax.set_ylim(*y_limits)
-    ax.axis("equal")
-    ax.scatter(data[0],data[1])
-    
-    print(data.T[index_list[-1]])
-    print(len(index_list))
-    for i in range(len(index_list)-1):
-        ax.plot([data[0][index_list[i]], data[0][index_list[i+1]]], [data[1][index_list[i]], data[1][index_list[i+1]]], c="r")
-        ax.scatter(data[0][index_list[i]], data[1][index_list[i]], c = 'r')
-
-    ax.plot([data[0][R1[0]], data[0][R1[1]]], [data[1][R1[0]], data[1][R1[1]]])
-    ax.plot([data[0][R2[0]], data[0][R2[1]]], [data[1][R2[0]], data[1][R2[1]]])
-    plt.show()
-'''
 
 
 
@@ -46,7 +28,7 @@ def first_pic(data, x_limits, y_limits, size=7, title = ""):
 
 x_limits = [-10,10]
 y_limits = [-5,5]
-N = 50
+N =10
 
 def random_data(x_limits, y_limits,N):
     """
@@ -96,6 +78,10 @@ def rotate(A,B,C):
 
 
 def graham_scan(data):
+    '''
+    Поиск выпуклой оболочки. Алгоритм Грэхема
+    data: numpy array shape= (2,N) (data[0] координаты иксов, data[1] координаты игреков)
+    '''
     #транспонируем для удобства
     dots_list = data.T
 
@@ -185,11 +171,12 @@ def angle (con_pol, m,n):
 def rotating_calipers(con_pol):
     """
     Измененный Shamos's algorithm
+    принимает точки, что являются вершинами выпуклой оболочки
     """
     n = len(con_pol)
 
-    i0 = np.argmin(con_pol, axis=0)[0] 
-    i = i0
+    # i0 = np.argmin(con_pol, axis=0)[0]
+    i = 0
     j = i+1
 
     while first_angle(con_pol, i, j)< np.pi:
@@ -221,34 +208,43 @@ def rotating_calipers(con_pol):
             yield i,j
             j+=1
 
-def quick_max_distance(data):
+def quick_max_distance(data, Use_library = False):
     '''
     Функция использует выпуклую оболочку
     и rotating calipers
+    data: numpy array shape= (2,N) (data[0] координаты иксов, data[1] координаты игреков)
+    Можно использовать библиотечную функцию поиска выпуклой оболочки, это быстрее
     '''
-    index_list = graham_scan(data)
+    # index_list1 = graham_scan(data)
+    if not Use_library:
+        index_list = graham_scan(data)
+    else:
+        hull = ConvexHull(data.T)
+        index_list = list(hull.vertices)
+    # print(index_list1)
+    # print(index_list)
 
     con_pol = data.T[index_list]
     mod = con_pol.shape[0]
-    print(mod)
+    # print(mod)
     max_d = 0
     for i in rotating_calipers(con_pol):
-        print(i)
+        # print(i)
         i= (i[0]% mod, i[1]% mod)
         if max_d< distance(con_pol[i[0]], con_pol[i[1]]):
             max_d = distance(con_pol[i[0]], con_pol[i[1]])
             res = i
-            print('res=',res)
+            # print('res=',res)
     return index_list[res[0]], index_list[res[1]]
     
 def test():
     k = 500
 
     for i in range(k):
-        data = random_data(x_limits, y_limits,N)
+        data = random_data(x_limits, y_limits,100)
         
 
-        R1 = quick_max_distance(data)
+        R1 = quick_max_distance(data, Use_library=True)
         R2 = max_distance(data)
 
         er_l =[]
@@ -260,13 +256,12 @@ def test():
             er_l.append(data)
         else:
             print('OK',i)
-        return er_l
+    return er_l
 
 
 class CellForDots:
     def __init__(self, x_lim, y_lim, index_dots, flag_list):
         '''
-
         x_lim = [x_min, x_max], y_lim = [y_min,y_max]
         index_dots - индексы точек, что попадают внутрь ячейки
         flag_list = numpy array (bool , bool, bool, bool)
@@ -303,6 +298,8 @@ class CellForDots:
 
 def cell_division(all_dots, cell):
     '''
+    Деление одной клетки на 2 новые. Если клетка не делится (внутри только 1 точка), то вернет ту же клетку
+    если новая клетка не содержит стороны, что является частью внешней границы точек, то функция ее уничтожит.
     all_dots - массив точек, это numpy массив размера (N,2)
     '''
     res = []
@@ -358,6 +355,12 @@ def cell_division(all_dots, cell):
 
 
 def create_cell_list(data, max_level_division= 6):
+    '''
+    Функция делит область с точками на клетки CellForDots
+    data: numpy array shape= (2,N) (data[0] координаты иксов, data[1] координаты игреков)
+    max_level_division - количество уровней разделений области
+    '''
+
     all_dots =data.T
 
     cell_list = []
@@ -378,14 +381,19 @@ def create_cell_list(data, max_level_division= 6):
             cell_list += cell_division(all_dots, cell_list.pop(0))
             # print(f'i= {i}, n={n}, len(cell_list) ={len(cell_list)}')
         
-    for cell in cell_list:
-        plt.plot(cell.data_for_plot()[0], cell.data_for_plot()[1], c='red')
-        plt.scatter(data[0][cell.index_dots], data[1][cell.index_dots], marker='x')    
+    # for cell in cell_list:
+    #     plt.plot(cell.data_for_plot()[0], cell.data_for_plot()[1], c='red')
+    #     plt.scatter(data[0][cell.index_dots], data[1][cell.index_dots], marker='x')    
 
     return cell_list
 
 
 def distance_in_cell_list(data,cell_list):
+    '''
+    Служебная функция для max_distance_by_cells
+    data: numpy array shape= (2,N) (data[0] координаты иксов, data[1] координаты игреков)
+    cell_list - список клеток на которые разделена область
+    '''
     all_dots = data.T
         
     index_list = []
@@ -407,34 +415,153 @@ def distance_in_cell_list(data,cell_list):
                 # print(index)
     return index_list[index[0]], index_list[index[1]]
 
-def max_distance_by_cells(data):
-    cell_list = create_cell_list(data)
+def max_distance_by_cells(data,max_level_division= 10):
+    '''
+    Поиск диаметра множества использующий деление области на клетки
+    data: numpy array shape= (2,N) (data[0] координаты иксов, data[1] координаты игреков)
+    max_level_division - количество уровней разделений области
+    Возвращает индексы точек между которыми можно провести диаметр
+    '''
+    cell_list = create_cell_list(data, max_level_division= max_level_division)
     return distance_in_cell_list(data, cell_list)
+
+
+def time_table(functions_list, special_params_list, size_list, delimiter = ' & ', decimal_places= 4,x_limits = x_limits, y_limits =y_limits):
+    '''
+    Функция для создания таблицы времени работы алгоритмов. принимает список функций,
+    список словарей дополнительных параметров к ним. Если параметров нет, то передается пустой словарь.
+    size_list - список с количествами точек. 
+    '''
+
+    assert len(functions_list)==len(special_params_list)
+
+    time_list = []
+
+    for size in size_list:
+        data = random_data(x_limits, y_limits,size)
+        time_list.append([])
+
+        for i, func in enumerate(functions_list):
+            t0 = time.time()
+            func(data, **special_params_list[i])
+            time_list[-1].append(time.time()-t0)
+    
+    for j in range(len(functions_list)):
+        for tm  in time_list:
+            print(delimiter, round(tm[j],decimal_places),sep='', end='')
+        print()    
+    
+
+def plots_for_quick_distance(x_limits = x_limits, y_limits = y_limits, N = N, title = 'Convex hull', nsize =0.4):
+    '''
+    Иллюстрация для алгоритма с выпуклой оболочкой
+    '''
+    data = random_data(x_limits, y_limits,N)
+    index_list = graham_scan(data)
+    R = quick_max_distance(data)
+
+    fig, ax = plt.subplots(figsize =(nsize* (x_limits[1]- x_limits[0]),nsize* (y_limits[1]- y_limits[0])))   
+    ax.set_xlim(*x_limits)
+    ax.set_ylim(*y_limits)
+    ax.axis("equal")
+    ax.scatter(data[0],data[1], color = 'b', s= 2)
+    
+    mod = len(index_list)
+
+    for i in range(len(index_list)):
+        ax.plot([data[0][index_list[i]], data[0][index_list[(i+1)% mod]]], [data[1][index_list[i]], data[1][index_list[(i+1)%mod]]], c="r")
+        ax.scatter(data[0][index_list[i]], data[1][index_list[i]], c = 'r')
+
+    ax.plot([data[0][R[0]], data[0][R[1]]], [data[1][R[0]], data[1][R[1]]], c = 'y')
+    ax.grid(alpha = 0.2)
+    ax.set_title(title)
+    plt.show()
+
+def plots_for_cells_distance(x_limits = x_limits, y_limits = y_limits, N = N, title = 'Bounding box', nsize =0.4, max_level_division = 10):
+    '''
+    Иллюстрация для алгоритма с клетками
+    '''
+    data = random_data(x_limits, y_limits,N)
+    cell_list = create_cell_list(data,max_level_division =max_level_division)
+    R = max_distance_by_cells(data, max_level_division =max_level_division)
+
+    fig, ax = plt.subplots(figsize =(nsize* (x_limits[1]- x_limits[0]),nsize* (y_limits[1]- y_limits[0])))   
+    ax.set_xlim(*x_limits)
+    ax.set_ylim(*y_limits)
+    ax.axis("equal")
+    ax.scatter(data[0],data[1], color = 'b', s = 2)
+    
+    for cell in cell_list:
+        plt.plot(cell.data_for_plot()[0], cell.data_for_plot()[1], c='red')
+        plt.scatter(data[0][cell.index_dots], data[1][cell.index_dots], marker='x', c = 'b')
+
+
+    ax.plot([data[0][R[0]], data[0][R[1]]], [data[1][R[0]], data[1][R[1]]], c = 'y')
+    ax.grid(alpha = 0.2)
+    ax.set_title(title)
+    plt.show()
+
+
+def spc_plot_for_cells_distance():
+    '''
+    Последовательная иллюстрация для алгоритма с клетками
+    '''
+
+    x_limits = [-10,10]
+    y_limits =[-5,5]
+    N = 6
+    max_level_division =5
+    data = random_data(x_limits, y_limits,N)
+    # cell_list = create_cell_list(data max_level_division= max_level_division)
+    
+    
+    R = max_distance_by_cells(data,max_level_division=max_level_division )
+
+    fig, ax = plt.subplots(2,2,figsize =(15,15))
+    ax = ax.ravel()
+    for lv in range(1,max_level_division):
+        i = lv-1   
+        ax[i].set_xlim(*x_limits)
+        ax[i].set_ylim(*y_limits)
+        ax[i].axis("equal")
+        ax[i].scatter(data[0],data[1], color = 'b', s= 2)
+        
+        cell_list= create_cell_list(data, max_level_division= lv)
+        for cell in cell_list:
+            ax[i].plot(cell.data_for_plot()[0], cell.data_for_plot()[1], c='red')
+            ax[i].scatter(data[0][cell.index_dots], data[1][cell.index_dots], marker='x', c = 'b')
+
+
+        ax[i].plot([data[0][R[0]], data[0][R[1]]], [data[1][R[0]], data[1][R[1]]], c = 'y')
+        ax[i].grid(alpha = 0.2)
+        title = f'made divisions: ${lv}$'
+        ax[i].set_title(title)
+    plt.show()
+
+
+
 
 
 if __name__ == "__main__":
 
-    data = random_data(x_limits, y_limits,N)
-    # index_list = graham_scan(data)
-
-    # R1 = quick_max_distance(data)
-    R2 = max_distance(data)
-
-
-    R1 = max_distance_by_cells(data)
-    print(f'right: {R2}, dist {distance(data.T[R2[0]], data.T[R2[1]])}')
-    print(f'test: {R1}, dist {distance(data.T[R1[0]], data.T[R1[1]])}')
-
-    plt.scatter(data[0], data[1])
     
+    functions_list = [
+        max_distance,
+        quick_max_distance,
+        max_distance_by_cells]
+    params = [
+        {},
+        {'Use_library' : False},
+        {'max_level_division':10}
+    ]
 
-    plt.plot([data[0][R1[0]], data[0][R1[1]]], [data[1][R1[0]], data[1][R1[1]]], label='test')
-    plt.plot([data[0][R2[0]], data[0][R2[1]]], [data[1][R2[0]], data[1][R2[1]]], label = 'real')
-    plt.legend()
-    
-    plt.show()
+    sizes = [10,100, 500, 1000]
+    time_table(functions_list, params, size_list= sizes)
 
+    plots_for_quick_distance(N = 50)
+    plots_for_cells_distance(N = 100,max_level_division=10)
 
+    spc_plot_for_cells_distance()
 
 
 
