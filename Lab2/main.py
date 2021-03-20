@@ -5,6 +5,28 @@ np.random.seed(11)
 # np.random.seed(29)
 # np.random.seed(143)
 
+
+'''
+fig, ax = plt.subplots()
+    
+    ax.set_xlim(*x_limits)
+    ax.set_ylim(*y_limits)
+    ax.axis("equal")
+    ax.scatter(data[0],data[1])
+    
+    print(data.T[index_list[-1]])
+    print(len(index_list))
+    for i in range(len(index_list)-1):
+        ax.plot([data[0][index_list[i]], data[0][index_list[i+1]]], [data[1][index_list[i]], data[1][index_list[i+1]]], c="r")
+        ax.scatter(data[0][index_list[i]], data[1][index_list[i]], c = 'r')
+
+    ax.plot([data[0][R1[0]], data[0][R1[1]]], [data[1][R1[0]], data[1][R1[1]]])
+    ax.plot([data[0][R2[0]], data[0][R2[1]]], [data[1][R2[0]], data[1][R2[1]]])
+    plt.show()
+'''
+
+
+
 def first_pic(data, x_limits, y_limits, size=7, title = ""):
     """
     Рисует только полученные точки
@@ -24,7 +46,7 @@ def first_pic(data, x_limits, y_limits, size=7, title = ""):
 
 x_limits = [-10,10]
 y_limits = [-5,5]
-N = 6
+N = 50
 
 def random_data(x_limits, y_limits,N):
     """
@@ -73,7 +95,6 @@ def rotate(A,B,C):
     return np.sin(angle)
 
 
-
 def graham_scan(data):
     #транспонируем для удобства
     dots_list = data.T
@@ -105,54 +126,14 @@ def graham_scan(data):
 
     return res
 
-
-def _angle(con_pol, m,n):
-    """
-    Функция для rotating_calipers
-    считает угол между прямыми, что образованы вершинами выпуклого многоуголькика
-    первая прямая создается из 2 вершин с индексами m, m+1
-    вторая прямая создается из 2 вершин с индексами n, n+1
-    Номера берутся по модулю количества вершин многоугольника
-    Угол - это угол от первой прямой ко второй по направлению часовой стрелки
-    """
-    
-    mod = con_pol.shape[0]
-
-    k1 = np.arctan2((con_pol[(m+1) % mod][1] - con_pol[m% mod][1]),(con_pol[(m+1) % mod][0] - con_pol[m% mod][0]))
-    
-    k2 = np.arctan2((con_pol[(n+1) % mod][1] - con_pol[n% mod][1]),(con_pol[(n+1) % mod][0] - con_pol[n% mod][0]))
-    
-    print(k1,k2)
-
-    k1 = k1 if np.abs(k1)< np.pi/2 else k1 - k1/np.abs(k1)*np.pi
-    k2 = k2 if np.abs(k2)< np.pi/2 else k2 - k2/np.abs(k2)*np.pi
-
-    res = k1 - k2
-    if k1 == k2:
-        print('!!!!!!!!!!')
-        print(k1 - k2, res)
-
-    # res = res if k1 >= k2 else np.pi - res*np.sign(res)
-    if k1 > k2:
-        # res = np.pi - res*np.sign(res)
-        res =res
-    if k1 < k2:
-        res = np.pi - np.sign(k1)*k1 - k2
-    
-    # res = res if res < np.pi else res - np.pi
-    # res = res if res > 0 else -1*res
-
-    print(f'k1 {k1}, k2 {k2}, res {res}')
-    return res 
-
 def first_angle(con_pol, m,n):
     """
-    Функция для rotating_calipers
-    считает угол между прямыми, что образованы вершинами выпуклого многоуголькика
-    первая прямая создается из 2 вершин с индексами m, m+1
-    вторая прямая создается из 2 вершин с индексами n, n+1
-    Номера берутся по модулю количества вершин многоугольника
-    Угол - это угол от первой прямой ко второй по направлению часовой стрелки
+    Это костыль для rotating_calipers
+    Нужен для вычисления первой пары точек
+    считает угол между отрезками, что образованы вершинами выпуклого многоуголькика
+    первый отрезок создается из 2 вершин с индексами m+1, m
+    второй отрезок создается из 2 вершин с индексами n, n+1
+    Совмещает точки m+1, n. И считает угол по направлению часовой стрелки? (возможны ошибки)
     """
     
     mod = con_pol.shape[0]
@@ -167,64 +148,39 @@ def first_angle(con_pol, m,n):
     # res = res if res < np.pi else res - np.pi
     res = res if res >0  else res + 2*np.pi
 
-    print(f'k1 {k1}, k2 {k2}, res {res}')
+    # print(f'k1 {k1}, k2 {k2}, res {res}')
     return res 
 
-def _rotating_calipers(con_pol):
+def angle (con_pol, m,n):
     """
-    Измененный Shamos's algorithm
+    Функция для rotating_calipers
+    считает угол между прямыми, что образованы вершинами выпуклого многоуголькика
+    первая прямая создается из 2 вершин с индексами m, m+1
+    вторая прямая создается из 2 вершин с индексами n, n+1
+    Номера берутся по модулю количества вершин многоугольника
+    Угол - это угол от первой прямой ко второй по направлению ПРОТИВ часовой стрелки
     """
-    n = len(con_pol)
 
-    i = np.argmin(con_pol, axis=0)[0]
-    j = np.argmax(con_pol, axis=0)[0]
-
-    # if con_pol[i+1][0] - con_pol[i][0] > con_pol[j][0] - con_pol[j+1][0]:
-    #     i,j = j,i
-
-    i, j=0, 1
-    while first_angle(con_pol, i, j)< np.pi:
-        j+=1
-
-    yield i, j
-
-    current = i
-    while j < n  or i < n:
-        print(f'current {current}, i+1 & angle:  {i+1, angle(con_pol,current, i+1)}, j+1 & angle: {j+1, angle(con_pol,current, j+1)}')
-        if angle(con_pol, current, i+1) <= angle(con_pol,current, j+1):
-            j+=1
-            current =j
-        else:
-            i+=1
-            current = i
-        yield i,j
-
-        if angle(con_pol,current, i+1) == angle(con_pol,current,j+1):
-            yield i+1, j
-            yield i, j+1
-            yield i+1, j+1
-
-            if current == i:
-                j+=1
-            else:
-                i+=1
-
-def quick_max_distance(data):
-    index_list = graham_scan(data)
-
-    con_pol = data.T[index_list]
     mod = con_pol.shape[0]
-    print(mod)
-    max_d = 0
-    for i in rotating_calipers(con_pol):
-        print(i)
-        i= (i[0]% mod, i[1]% mod)
-        if max_d< distance(con_pol[i[0]], con_pol[i[1]]):
-            max_d = distance(con_pol[i[0]], con_pol[i[1]])
-            res = i
-            print('res=',res)
-    return index_list[res[0]], index_list[res[1]]
+    # print(f'first line start {con_pol[(m)%mod]}, end {con_pol[(m+1)%mod]}')
+    # print(f'second line start {con_pol[(n)%mod]}, end {con_pol[(n+1)%mod]}')
+    k1 = np.arctan2((con_pol[(m+1) % mod][1] - con_pol[m% mod][1]),(con_pol[(m+1) % mod][0] - con_pol[m% mod][0]))
+    
+    k2 = np.arctan2((con_pol[(n+1) % mod][1] - con_pol[n% mod][1]),(con_pol[(n+1) % mod][0] - con_pol[n% mod][0]))
+    # print(f'before rotate k1 {k1}, k2 {k2}')
 
+    k1 = k1 if np.abs(k1)< np.pi/2 else k1 - k1/np.abs(k1)*np.pi
+    k2 = k2 if np.abs(k2)< np.pi/2 else k2 - k2/np.abs(k2)*np.pi
+
+    # print(f'after rotate k1 {k1}, k2 {k2}')
+    
+    if k2< k1:
+        res = np.pi  - (k1 - k2)
+    else:
+        res = np.abs(k1 - k2)
+
+    # print(f'k1 {k1}, k2 {k2}, res {res}')
+    return np.abs(res)
 
 def rotating_calipers(con_pol):
     """
@@ -244,13 +200,13 @@ def rotating_calipers(con_pol):
     current = i
     i+=1
     while j != n+1:
-        # print(f'current {current}, i+1 & angle:  {i+1, angle(con_pol,current, i+1)}, j+1 & angle: {j+1, angle(con_pol,current, j+1)}')
-        print(f'current {current}, i & angle:  {i, angle(con_pol,current, i)}, j & angle: {j, angle(con_pol,current, j)}')
+        
+        # print(f'current {current}, i & angle:  {i, angle(con_pol,current, i)}, j & angle: {j, angle(con_pol,current, j)}')
         if angle(con_pol,current, i) == angle(con_pol,current,j):
             yield i, j
             yield i+1, j
             yield i, j+1
-            # yield i+1, j+1
+            
 
             i+=1
             j+=1
@@ -265,60 +221,26 @@ def rotating_calipers(con_pol):
             yield i,j
             j+=1
 
+def quick_max_distance(data):
+    '''
+    Функция использует выпуклую оболочку
+    и rotating calipers
+    '''
+    index_list = graham_scan(data)
 
-
-        
-
-
-def area(con_pol, i,j, k):
-    
+    con_pol = data.T[index_list]
     mod = con_pol.shape[0]
+    print(mod)
+    max_d = 0
+    for i in rotating_calipers(con_pol):
+        print(i)
+        i= (i[0]% mod, i[1]% mod)
+        if max_d< distance(con_pol[i[0]], con_pol[i[1]]):
+            max_d = distance(con_pol[i[0]], con_pol[i[1]])
+            res = i
+            print('res=',res)
+    return index_list[res[0]], index_list[res[1]]
     
-    i %=  mod
-    j %= mod
-    k %= mod
-
-
-    a = distance(con_pol[i], con_pol[j])
-    b = distance(con_pol[i], con_pol[k])
-    c = distance(con_pol[j], con_pol[k])
-
-    p = (a+b+c)/2
-
-    return np.sqrt( p*(p-a)*(p-b)*(p-c) )
-
-
-def BAD_rotating_calipers(con_pol):
-    n =con_pol.shape[0]
-
-    i0 = n-1
-    i = 0
-    j = i+1
-
-    while area(con_pol, i, i+1, j+1) > area(con_pol, i, i+1, j):
-        j+=1
-        j0 = j
-        print('test')
-    while j!= i0 and (i,j)!= (j0,i0):
-        i+=1
-        yield i,j
-
-        while area(con_pol, i, i+1, j+1)> area(con_pol,i, i+1, j) and (i,j)!= (j0,i0):
-            j+=1
-            if (i,j)!= (j0,i0):
-                yield i,j
-            else:
-                break
-        if (i,j)== (j0,i0):
-            break
-
-        if area(con_pol,j,i +1, j+1) == area(con_pol, i, i+1, j):
-            if (i,j) != (j0,i0):
-                yield i, j+1
-            else:
-                yield i+1, j
-                
-
 def test():
     k = 500
 
@@ -341,88 +263,178 @@ def test():
         return er_l
 
 
+class CellForDots:
+    def __init__(self, x_lim, y_lim, index_dots, flag_list):
+        '''
 
-def angle1(con_pol, m,n):
+        x_lim = [x_min, x_max], y_lim = [y_min,y_max]
+        index_dots - индексы точек, что попадают внутрь ячейки
+        flag_list = numpy array (bool , bool, bool, bool)
+        flag_list - массив их 4 bool, индикатор того, является ли стенка якейки внешней для всего множества точек.
+        значения соответствуют x_min, x_max, y_min,y_max соответственно 
+        '''
+        
+        self.x_lim = x_lim
+        self.y_lim = y_lim
+        
+        self.flag_list = flag_list
+
+        self.index_dots = index_dots
+
+        self.division = True if len(self.index_dots) > 1 else False
+
+    def data_for_plot(self):
+        res_x = [
+            self.x_lim[0],
+            self.x_lim[0],
+            self.x_lim[1],
+            self.x_lim[1],
+            self.x_lim[0],
+        ]
+        res_y = [
+            self.y_lim[0],
+            self.y_lim[1],
+            self.y_lim[1],
+            self.y_lim[0],
+            self.y_lim[0],
+        ]
     
-    mod = con_pol.shape[0]
+        return res_x, res_y
 
-    k1 = np.arctan2((con_pol[(m+1) % mod][1] - con_pol[m% mod][1]),(con_pol[(m+1) % mod][0] - con_pol[m% mod][0]))
-    
-    k2 = np.arctan2((con_pol[(n+1) % mod][1] - con_pol[n% mod][1]),(con_pol[(n+1) % mod][0] - con_pol[n% mod][0]))
-    
-    # k1 = k1 if np.abs(k1)< np.pi/2 else k1 - k1/np.abs(k1)*np.pi
-    # k2 = k2 if np.abs(k2)< np.pi/2 else k2 - k2/np.abs(k2)*np.pi
+def cell_division(all_dots, cell):
+    '''
+    all_dots - массив точек, это numpy массив размера (N,2)
+    '''
+    res = []
 
-    res = np.abs(k1 - k2)
-    
-    if k2< k1:
-        # res = np.pi -  np.sign(k2)*k2 - k1
-        res = 2*np.pi  - np.sign(k1)*k1  - np.sign(k2) * k2
+    if not cell.division:
+        return [cell]
 
-    # res = np.abs(k1 - k2)
-
-    print(f'k1 {k1}, k2 {k2}, res {res}')
-    return np.abs(res)
-
-
-def angle (con_pol, m,n):
-    mod = con_pol.shape[0]
-    # print(f'first line start {con_pol[(m)%mod]}, end {con_pol[(m+1)%mod]}')
-    # print(f'second line start {con_pol[(n)%mod]}, end {con_pol[(n+1)%mod]}')
-    k1 = np.arctan2((con_pol[(m+1) % mod][1] - con_pol[m% mod][1]),(con_pol[(m+1) % mod][0] - con_pol[m% mod][0]))
-    
-    k2 = np.arctan2((con_pol[(n+1) % mod][1] - con_pol[n% mod][1]),(con_pol[(n+1) % mod][0] - con_pol[n% mod][0]))
-    print(f'before rotate k1 {k1}, k2 {k2}')
-
-    k1 = k1 if np.abs(k1)< np.pi/2 else k1 - k1/np.abs(k1)*np.pi
-    k2 = k2 if np.abs(k2)< np.pi/2 else k2 - k2/np.abs(k2)*np.pi
-
-    print(f'after rotate k1 {k1}, k2 {k2}')
-    
-    if k2< k1:
-        res = np.pi  - (k1 - k2)
+    if cell.x_lim[1] - cell.x_lim[0] < cell.y_lim[1] - cell.y_lim[0]:
+        divider = (cell.y_lim[1] - cell.y_lim[0])/2 + cell.y_lim[0]
+        index_divider = 1
     else:
-        res = np.abs(k1 - k2)
+        divider = (cell.x_lim[1] - cell.x_lim[0])/2 + cell.x_lim[0]
+        index_divider = 0
 
-    print(f'k1 {k1}, k2 {k2}, res {res}')
-    return np.abs(res)
+    b_arr = np.where( (all_dots[cell.index_dots]).T[index_divider] < divider, True, False)
 
+    in_dots_less = cell.index_dots[b_arr]
+    
+    in_dots_greater = cell.index_dots[np.logical_not(b_arr)]
+
+    flag_list_less = cell.flag_list.copy()
+    flag_list_less[index_divider*2+1] = False
+
+    flag_list_greater = cell.flag_list.copy()
+    flag_list_greater[index_divider*2] = False
+
+
+    x_lim_less = cell.x_lim[:]
+    x_lim_greater = cell.x_lim[:]
+
+    y_lim_less = cell.y_lim[:]
+    y_lim_greater = cell.y_lim[:]
+
+    if index_divider==1:
+        y_lim_less[1] = divider
+        y_lim_greater[0] = divider
+    else:
+        x_lim_less[1] = divider
+        x_lim_greater[0] = divider
+
+    
+    cell_less = CellForDots(x_lim_less, y_lim_less, in_dots_less, flag_list_less)
+    # print(f'less flag_list_less {flag_list_less}, division {cell_less.division}')
+    if cell_less.index_dots.shape[0] >0 and np.sum(flag_list_less):
+        res.append(cell_less)
+    
+    cell_greater = CellForDots(x_lim_greater, y_lim_greater, in_dots_greater, flag_list_greater)
+    # print(f'greater flag_list_greater {flag_list_greater}, division {cell_greater.division}')
+    if cell_greater.index_dots.shape[0] >0 and np.sum(flag_list_greater):
+        res.append(cell_greater)
+
+    return res
+
+
+def create_cell_list(data, max_level_division= 6):
+    all_dots =data.T
+
+    cell_list = []
+
+    x_lim = [np.min(all_dots.T[0]), np.max(all_dots.T[0])]
+    y_lim = [np.min(all_dots.T[1]), np.max(all_dots.T[1])]
+    
+    index_dots = np.arange(all_dots.shape[0])
+
+    flag_list = np.array([True]*4)
+
+    cell_list.append(CellForDots(x_lim,y_lim,index_dots, flag_list))
+
+    for i in range(max_level_division):
+        n = len(cell_list)
+
+        for j in range(n):
+            cell_list += cell_division(all_dots, cell_list.pop(0))
+            # print(f'i= {i}, n={n}, len(cell_list) ={len(cell_list)}')
+        
+    for cell in cell_list:
+        plt.plot(cell.data_for_plot()[0], cell.data_for_plot()[1], c='red')
+        plt.scatter(data[0][cell.index_dots], data[1][cell.index_dots], marker='x')    
+
+    return cell_list
+
+
+def distance_in_cell_list(data,cell_list):
+    all_dots = data.T
+        
+    index_list = []
+
+    for cell in cell_list:
+        index_list += list(cell.index_dots)
+
+    # print(index_list)
+
+    data_in_cell_list = all_dots[index_list]
+
+    max =0
+    index = []
+    for in1, dot1 in enumerate(data_in_cell_list):
+        for in2,dot2 in enumerate(data_in_cell_list[in1:], start=in1):
+            if max < distance(dot1, dot2):
+                max = distance(dot1, dot2)
+                index = [in1,in2]
+                # print(index)
+    return index_list[index[0]], index_list[index[1]]
+
+def max_distance_by_cells(data):
+    cell_list = create_cell_list(data)
+    return distance_in_cell_list(data, cell_list)
 
 
 if __name__ == "__main__":
 
-    
-    lr = test()
-    print(len(lr))
-
-
-    # data = random_data(x_limits, y_limits,N)
+    data = random_data(x_limits, y_limits,N)
     # index_list = graham_scan(data)
 
     # R1 = quick_max_distance(data)
-    # R2 = max_distance(data)
+    R2 = max_distance(data)
 
-    # print(f'test: {R1}, dist {distance(data.T[R1[0]], data.T[R1[1]])}')
-    # print(f'right: {R2}, dist {distance(data.T[R2[0]], data.T[R2[1]])}')
 
-    # print('!!!!')
+    R1 = max_distance_by_cells(data)
+    print(f'right: {R2}, dist {distance(data.T[R2[0]], data.T[R2[1]])}')
+    print(f'test: {R1}, dist {distance(data.T[R1[0]], data.T[R1[1]])}')
 
-    # fig, ax = plt.subplots()
+    plt.scatter(data[0], data[1])
     
-    # ax.set_xlim(*x_limits)
-    # ax.set_ylim(*y_limits)
-    # ax.axis("equal")
-    # ax.scatter(data[0],data[1])
-    
-    # print(data.T[index_list[-1]])
-    # print(len(index_list))
-    # for i in range(len(index_list)-1):
-    #     ax.plot([data[0][index_list[i]], data[0][index_list[i+1]]], [data[1][index_list[i]], data[1][index_list[i+1]]], c="r")
-    #     ax.scatter(data[0][index_list[i]], data[1][index_list[i]], c = 'r')
 
-    # ax.plot([data[0][R1[0]], data[0][R1[1]]], [data[1][R1[0]], data[1][R1[1]]])
-    # ax.plot([data[0][R2[0]], data[0][R2[1]]], [data[1][R2[0]], data[1][R2[1]]])
-    # plt.show()
+    plt.plot([data[0][R1[0]], data[0][R1[1]]], [data[1][R1[0]], data[1][R1[1]]], label='test')
+    plt.plot([data[0][R2[0]], data[0][R2[1]]], [data[1][R2[0]], data[1][R2[1]]], label = 'real')
+    plt.legend()
+    
+    plt.show()
+
+
 
 
 
