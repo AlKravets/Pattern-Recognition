@@ -45,4 +45,6 @@
 Лабораторную делал в jupyter notebook.
 
 - [Лаба notebook](Lab4/Labwork%204.ipynb)
+- [отчет pdf](Lab4/report/report.pdf)
+- [отчет tex](Lab4/report/report.tex)
 
